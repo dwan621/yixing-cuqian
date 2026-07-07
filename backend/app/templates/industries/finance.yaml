@@ -1,0 +1,83 @@
+name: finance
+aliases: ["金融", "银行", "证券", "保险", "finance"]
+default_scenarios: ["风控", "反欺诈", "客户 360", "报表合规"]
+architecture_snippet: |
+  核心系统 → 消息队列 → 风控引擎 → { 规则 · 模型 · 名单 } → 决策服务 → 前端与审计
+feature_bank:
+  - id: fin-risk-rule
+    title: 可视化风控规则编辑
+    description: 拖拽式配置反欺诈规则，实时预览命中率
+    demo_steps:
+      - 新建规则：金额 > 5 万 且 收款方为新绑
+      - 用回放数据预览命中笔数
+      - 保存并灰度上线
+    talking_points:
+      - 规则改动无需发版，业务同学自主运营
+      - 灰度机制先跑影子流量再切真实
+    scenarios: ["风控", "反欺诈"]
+  - id: fin-model
+    title: 反欺诈模型评分
+    description: 集成 XGBoost 模型对每笔交易输出 0-1000 风险分
+    demo_steps:
+      - 选一笔交易，展示评分与关键特征
+      - 对比规则命中与模型命中
+    talking_points:
+      - 模型与规则可组合决策
+      - 特征贡献度可解释，满足监管审核
+    scenarios: ["风控", "反欺诈"]
+  - id: fin-customer-360
+    title: 客户 360 视图
+    description: 汇总账户、交易、行为、外部数据，形成客户画像
+    demo_steps:
+      - 输入客户号，加载 360 页面
+      - 切换到"风险时间轴"标签
+    talking_points:
+      - 打破分行/条线数据孤岛
+      - 敏感字段按角色脱敏
+    scenarios: ["客户 360"]
+  - id: fin-alert
+    title: 告警工单
+    description: 命中规则/模型自动生成工单，指派到运营
+    demo_steps:
+      - 展示工单列表，筛选高风险
+      - 打开一单，处置：确认欺诈 / 误报
+    talking_points:
+      - 处置结果反哺模型迭代
+      - 支持外呼二次核实
+    scenarios: ["风控", "反欺诈"]
+  - id: fin-report
+    title: 监管报表自动生成
+    description: 按人行/银保监模板日/月/季度自动出表
+    demo_steps:
+      - 选择报表类型与周期
+      - 一键生成并下载
+    talking_points:
+      - 与核心系统 T+0 对账
+      - 生成过程留痕，支持审计追溯
+    scenarios: ["报表合规"]
+  - id: fin-blacklist
+    title: 名单联邦查询
+    description: 与外部名单服务安全对接，隐私计算查询命中情况
+    demo_steps:
+      - 输入手机号，展示命中来源
+      - 打开一个命中记录，展示证据链
+    talking_points:
+      - 通过隐私计算而非明文传输
+      - 名单来源可管理，支持撤销
+    scenarios: ["反欺诈"]
+mock_data_schema:
+  transactions:
+    - {txn_id: "T-000001", account: "6222-1234", amount: 68000, counterparty: "新绑收款方 A", ts: "2026-07-06T10:12:00", risk_score: 820}
+    - {txn_id: "T-000002", account: "6222-5678", amount: 300, counterparty: "常用商户 B", ts: "2026-07-06T10:13:04", risk_score: 40}
+    - {txn_id: "T-000003", account: "6222-1234", amount: 120000, counterparty: "新绑收款方 A", ts: "2026-07-06T10:15:22", risk_score: 950}
+  alerts:
+    - {alert_id: "A-0001", txn_id: "T-000003", rule: "大额新收款方", severity: "high", status: "open"}
+    - {alert_id: "A-0002", txn_id: "T-000001", rule: "夜间大额", severity: "medium", status: "processing"}
+    - {alert_id: "A-0003", txn_id: "T-000002", rule: "模型评分>800", severity: "low", status: "closed"}
+  customers:
+    - {customer_id: "C-1001", tier: "钻石", risk_level: "低", asset: 5200000}
+    - {customer_id: "C-1002", tier: "白金", risk_level: "中", asset: 380000}
+    - {customer_id: "C-1003", tier: "黄金", risk_level: "低", asset: 90000}
+talking_points:
+  - 金融客户最看重可解释性与合规审计，评分之外要能讲清"为什么"
+  - 强调"规则+模型"双引擎，业务与算法各自演进

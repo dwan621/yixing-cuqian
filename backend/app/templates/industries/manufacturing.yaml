@@ -1,0 +1,84 @@
+name: manufacturing
+aliases: ["制造业", "制造", "工厂", "manufacturing"]
+default_scenarios: ["供应链管理", "生产计划", "质量管理", "设备管理"]
+architecture_snippet: |
+  客户 ERP → API 网关 → 供应链核心服务 → { 订单 · 库存 · 物流 · 生产 } → 报表与预警
+feature_bank:
+  - id: mfg-order
+    title: 智能订单管理
+    description: 集中管理来自多渠道的销售订单，自动分配产能与物料
+    demo_steps:
+      - 打开订单列表，展示待处理订单
+      - 演示自动派单：勾选订单，点击"智能派单"
+      - 展示派单结果与产能占用图
+    talking_points:
+      - 与客户现有 ERP 双向同步，无需二次录入
+      - AI 派单基于产能、交期、成本三重最优
+    scenarios: ["供应链管理", "生产计划"]
+  - id: mfg-inventory
+    title: 实时库存看板
+    description: 按仓库、SKU、批次多维度展示库存与安全线告警
+    demo_steps:
+      - 切换到库存看板视图
+      - 筛选低于安全线的 SKU
+      - 展示自动补货建议
+    talking_points:
+      - 分钟级刷新，替代日报表
+      - 安全线自动学习季节性波动
+    scenarios: ["供应链管理"]
+  - id: mfg-logistics
+    title: 物流追踪
+    description: 集成主流物流服务商，实时展示订单在途状态
+    demo_steps:
+      - 输入订单号，展示轨迹地图
+      - 演示异常预警（超时、路径偏离）
+    talking_points:
+      - 一图看清全国订单在途分布
+      - 异常自动派单到客户经理
+    scenarios: ["供应链管理", "物流"]
+  - id: mfg-quality
+    title: 质量追溯
+    description: 从成品逆向追溯到批次、工序、原料供应商
+    demo_steps:
+      - 输入成品编号，展示批次树
+      - 定位到问题工序与责任人
+    talking_points:
+      - 质量事故 5 分钟内定位根因
+      - 满足 IATF 16949 等审核要求
+    scenarios: ["质量管理"]
+  - id: mfg-oee
+    title: 设备 OEE 分析
+    description: 综合可用率、性能、良率三个维度评估设备效率
+    demo_steps:
+      - 展示 OEE 热力图
+      - 下钻到单台设备的停机原因
+    talking_points:
+      - 直接对接 PLC / MES 采集数据
+      - 停机原因分类由客户自定义
+    scenarios: ["设备管理", "生产计划"]
+  - id: mfg-forecast
+    title: 需求预测
+    description: 基于历史订单与季节因子生成月度需求预测
+    demo_steps:
+      - 选择 SKU 与预测周期
+      - 展示预测曲线与置信区间
+    talking_points:
+      - 模型每周自动重训练
+      - 支持人工调整并留痕
+    scenarios: ["供应链管理", "生产计划"]
+mock_data_schema:
+  orders:
+    - {order_id: "SO-2026-0001", customer: "华东汽车零部件", sku: "GEAR-A12", qty: 500, due_date: "2026-07-15", status: "in_production"}
+    - {order_id: "SO-2026-0002", customer: "南方机械", sku: "SHAFT-B08", qty: 1200, due_date: "2026-07-20", status: "pending"}
+    - {order_id: "SO-2026-0003", customer: "华东汽车零部件", sku: "BEARING-C03", qty: 800, due_date: "2026-07-25", status: "shipped"}
+  inventory:
+    - {sku: "GEAR-A12", warehouse: "上海一号仓", qty: 240, safety_stock: 300}
+    - {sku: "SHAFT-B08", warehouse: "上海一号仓", qty: 1500, safety_stock: 800}
+    - {sku: "BEARING-C03", warehouse: "深圳二号仓", qty: 60, safety_stock: 200}
+  shipments:
+    - {shipment_id: "SH-0001", order_id: "SO-2026-0003", carrier: "顺丰", eta: "2026-07-08", status: "in_transit"}
+    - {shipment_id: "SH-0002", order_id: "SO-2026-0002", carrier: "德邦", eta: "2026-07-22", status: "created"}
+    - {shipment_id: "SH-0003", order_id: "SO-2026-0001", carrier: "京东", eta: "2026-07-16", status: "created"}
+talking_points:
+  - 制造业客户最关心交期与库存周转，演示节奏应从订单开始
+  - 强调"数据从设备到看板一条链路"，不是靠人工填报

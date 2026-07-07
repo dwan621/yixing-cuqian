@@ -1,0 +1,82 @@
+name: retail
+aliases: ["零售", "电商", "商超", "retail", "e-commerce"]
+default_scenarios: ["会员运营", "商品分析", "门店选品", "促销策划"]
+architecture_snippet: |
+  POS/电商 → 数据中台 → { 会员 · 商品 · 交易 } → 分析与营销 → 门店/APP/公众号
+feature_bank:
+  - id: rtl-member
+    title: 会员分层运营
+    description: RFM 模型自动分层并推荐营销活动
+    demo_steps:
+      - 展示会员分层饼图
+      - 选"沉睡高价值"层，推荐唤醒活动
+    talking_points:
+      - 分层规则可视化调整，业务自主
+      - 活动效果 T+1 归因
+    scenarios: ["会员运营"]
+  - id: rtl-basket
+    title: 关联分析
+    description: 挖掘常见连带购买组合，指导商品陈列与套餐
+    demo_steps:
+      - 输入品类，展示 Top 10 关联品类
+      - 演示"提升度"排序
+    talking_points:
+      - 支撑跨品类促销
+      - 结果直接推送到店长 APP
+    scenarios: ["商品分析", "促销策划"]
+  - id: rtl-store-select
+    title: 门店选品
+    description: 结合门店画像与销售历史，推荐补货清单
+    demo_steps:
+      - 选一家门店，展示当前 SKU 结构
+      - 展示"推荐引入"与"建议下架"
+    talking_points:
+      - 融入商圈画像，同一品牌不同店不同选品
+      - 每周自动刷新，支持人工微调
+    scenarios: ["门店选品"]
+  - id: rtl-promo
+    title: 促销 A/B 测试
+    description: 支持多方案并行投放，实时对比转化
+    demo_steps:
+      - 创建 A/B 两个优惠券方案
+      - 查看当前转化对比
+    talking_points:
+      - 显著性检验自动计算
+      - 效果达标可一键全量投放
+    scenarios: ["促销策划"]
+  - id: rtl-price
+    title: 智能调价
+    description: 根据竞品价、库龄、季节因子给出建议价
+    demo_steps:
+      - 选 SKU，展示当前价与建议价
+      - 展示预期毛利影响
+    talking_points:
+      - 竞品价通过合规爬取，可追溯
+      - 建议价可批量应用或按门店差异化
+    scenarios: ["商品分析", "促销策划"]
+  - id: rtl-inventory
+    title: 全渠道库存共享
+    description: 打通电商与门店库存，就近履约
+    demo_steps:
+      - 展示一个 SKU 在全国的库存热力图
+      - 演示线上单派单到最近门店
+    talking_points:
+      - 缩短履约时长、降低物流成本
+      - 门店闲置库存有效变现
+    scenarios: ["门店选品"]
+mock_data_schema:
+  members:
+    - {member_id: "M-0001", tier: "钻石", last_purchase: "2026-07-03", rfm: "555", ltv: 12800}
+    - {member_id: "M-0002", tier: "沉睡", last_purchase: "2025-12-11", rfm: "115", ltv: 3400}
+    - {member_id: "M-0003", tier: "潜力", last_purchase: "2026-06-25", rfm: "343", ltv: 6200}
+  skus:
+    - {sku: "SKU-A1", category: "零食", price: 12.9, stock: 340, sold_30d: 210}
+    - {sku: "SKU-A2", category: "日化", price: 39.9, stock: 55, sold_30d: 80}
+    - {sku: "SKU-A3", category: "零食", price: 8.5, stock: 500, sold_30d: 320}
+  orders:
+    - {order_id: "O-000001", channel: "线上", amount: 156, member_id: "M-0001", store: "线上"}
+    - {order_id: "O-000002", channel: "门店", amount: 88, member_id: "M-0003", store: "北京 SKP 店"}
+    - {order_id: "O-000003", channel: "门店", amount: 42, member_id: null, store: "上海静安店"}
+talking_points:
+  - 零售客户看重"看得见"的数据，图表要多而清晰
+  - 会员与商品是两条主线，先讲客户想听的
