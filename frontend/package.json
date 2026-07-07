@@ -1,0 +1,12 @@
+{
+  "name": "yixing-frontend", "version": "0.1.0", "private": true, "type": "module",
+  "scripts": {
+    "dev": "vite", "build": "vue-tsc && vite build", "preview": "vite preview",
+    "test": "vitest run", "test:watch": "vitest"
+  },
+  "dependencies": { "vue": "^3.4", "pinia": "^2.1", "element-plus": "^2.7", "marked": "^12.0", "@element-plus/icons-vue": "^2.3" },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.0", "@vue/test-utils": "^2.4", "jsdom": "^24.0",
+    "typescript": "^5.5", "vite": "^5.3", "vitest": "^1.6", "vue-tsc": "^2.0"
+  }
+}
