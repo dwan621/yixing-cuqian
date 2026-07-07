@@ -49,6 +49,10 @@ async def _eviction_loop():
     while True:
         await anyio.sleep(60)
         store.evict_expired()
+        # Clean up progress queues for sessions no longer in the store.
+        stale = [sid for sid in progress_queues if store.get(sid) is None]
+        for sid in stale:
+            progress_queues.pop(sid, None)
 
 
 async def _run_and_notify(sid: str, req: RequirementInput):

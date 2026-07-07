@@ -1,5 +1,5 @@
 <template>
-  <div class="app-container">
+  <el-container class="app-container">
     <el-header style="text-align:center;font-size:24px;font-weight:bold;padding:20px 0">
       以型促签 · 售前快速原型生成器
     </el-header>
@@ -11,7 +11,7 @@
         <template #extra><el-button type="primary" @click="plan.reset()">返回</el-button></template>
       </el-result>
     </el-main>
-  </div>
+  </el-container>
 </template>
 
 <script setup lang="ts">

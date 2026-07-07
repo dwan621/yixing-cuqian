@@ -63,6 +63,12 @@ async def run_pipeline(
 ) -> dict:
     reg = registry or AGENT_REGISTRY
     active_dag = dag or DAG
+
+    # Validate all DAG node names exist in the registry.
+    missing = [n.name for n in active_dag if n.name not in reg]
+    if missing:
+        raise ValueError(f"DAG nodes not found in registry: {missing}")
+
     layers = topological_layers(active_dag)
     failures: list[AgentEvent] = []
     failed_names: set[str] = set()

@@ -9,11 +9,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 import { usePlanStore } from '@/stores/plan'
 import ExportButton from './ExportButton.vue'
 
 const plan = usePlanStore()
-const rendered = computed(() => marked(plan.result?.markdown ?? ''))
+const rendered = computed(() => DOMPurify.sanitize(marked(plan.result?.markdown ?? '') as string))
 </script>
 
 <style>

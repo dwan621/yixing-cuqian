@@ -18,12 +18,16 @@ export const usePlanStore = defineStore('plan', () => {
         sessionId.value,
         (ev) => { events.value = [...events.value, ev] },
         async () => {
-          const last = events.value[events.value.length - 1]
-          if (last?.status === 'failed' || last?.error) {
-            phase.value = 'error'; error.value = last?.error || 'Pipeline failed'; return
+          try {
+            const last = events.value[events.value.length - 1]
+            if (last?.status === 'failed' || last?.error) {
+              phase.value = 'error'; error.value = last?.error || 'Pipeline failed'; return
+            }
+            result.value = await fetchResult(sessionId.value)
+            phase.value = 'done'
+          } catch (e: any) {
+            phase.value = 'error'; error.value = e.message || 'Failed to fetch result'
           }
-          result.value = await fetchResult(sessionId.value)
-          phase.value = 'done'
         },
       )
     } catch (e: any) { phase.value = 'error'; error.value = e.message }

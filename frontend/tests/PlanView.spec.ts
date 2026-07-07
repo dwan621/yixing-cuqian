@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
+import { nextTick } from 'vue'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import PlanView from '@/components/PlanView.vue'
@@ -14,7 +15,7 @@ describe('PlanView', () => {
     store.result = { session_id: 's1', markdown: '# 售前方案\n\n测试', functions: [], mock_data: {}, architecture: '', demo_script: {} }
     store.phase = 'done'
     const wrapper = mount(PlanView, { global: { plugins: [pinia] } })
-    await wrapper.vm.$nextTick()
+    await nextTick()
     expect(wrapper.html()).toContain('售前方案')
   })
 })

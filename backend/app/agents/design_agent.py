@@ -58,25 +58,19 @@ class DesignAgent:
             selected.append(other[i])
             i += 1
 
-        # Ensure coverage of the relevant slice >= 0.8.
-        if relevant:
-            covered = sum(1 for f in selected if f in relevant)
-            while covered / len(relevant) < MIN_COVERAGE and i < len(other):
-                selected.append(other[i])
-                i += 1
-                covered = sum(1 for f in selected if f in relevant)
-        coverage_ratio = 1.0 if not relevant else sum(1 for f in selected if f in relevant) / len(relevant)
-
         # Fair minute allocation: each feature >= 1 min, sum == demo_minutes.
         n = len(selected)
         total = parsed.demo_minutes
 
         # When total < n we cannot give every feature >= 1 min.
-        # Trim selected to the first `total` features — the coverage ratio
-        # was already computed from the full selection above.
+        # Trim selected to the first `total` features.
         if total < n:
             selected = selected[:total]
             n = len(selected)
+
+        # Recompute coverage_ratio AFTER truncation so the reported
+        # value reflects the actual features that will be demoed.
+        coverage_ratio = 1.0 if not relevant else sum(1 for f in selected if f in relevant) / len(relevant)
 
         base = max(1, total // n)
         allocation = [base] * n
