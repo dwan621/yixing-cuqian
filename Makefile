@@ -13,7 +13,7 @@ test-frontend:
 test: test-backend test-frontend
 
 dev-backend:
-	cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+	cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8800
 
 dev-frontend:
 	cd frontend && npm run dev

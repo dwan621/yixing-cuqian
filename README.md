@@ -5,8 +5,8 @@
 ## 快速开始
 
 1. `make install` — 安装所有依赖
-2. `make dev-backend` -> http://localhost:8000/docs
-3. `make dev-frontend` -> http://localhost:5173
+2. `make dev-backend` -> http://localhost:8800/docs
+3. `make dev-frontend` -> http://localhost:3300
 4. `make test` — 运行全部测试
 5. `make e2e` — 验收测试 (AC-1..AC-7)
 
