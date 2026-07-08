@@ -2,75 +2,116 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Repository state
+## Build / Test / Run
 
-This repo currently contains **only the requirements spec** — `doc/02-以型促签.docx` — and no source code. The spec describes a校招生 Agent 开发作业 (campus-recruit Agent development assignment). Before writing code, read the spec (via `python C:/Users/11481/.claude/skills/docx/scripts/office/unpack.py doc/02-以型促签.docx <out>/` and extract `w:t` from `word/document.xml`, since `pandoc` is not installed on this machine).
+All commands assume Python 3.11+ and Node 20+.
 
-Do not invent build/test/lint commands until the scaffold exists. When scaffolding starts, replace this section with real commands.
+```bash
+# Install everything
+make install                        # venv + pip install -e ".[dev]" + npm install
 
-## Product target (from `doc/02-以型促签.docx` v1.0, 2026-07-06)
+# Backend (Python/FastAPI)
+cd backend && pytest -v             # 74 tests
+cd backend && pytest -k <name> -v   # single test
+cd backend && pytest tests/test_e2e_ac.py -v   # AC-1..AC-7 (7 tests)
 
-**「以型促签」/ Pre-sales Rapid Prototype Generator** — a multi-Agent tool for pre-sales engineers. User inputs a customer scenario (industry / focus / scale / desired demo length); a chain of LLM Agents produces a customized pre-sales package (functional list, mock data, demo script, optional architecture diagram) in ≤ 30 s end-to-end.
+# Frontend (Vue 3/Vite)
+cd frontend && npx vitest run       # 2 tests
 
-### Agent topology (spec §5.2 — the core architecture)
-
-```
-用户输入
-  ↓
-[需求解析 Agent]      → 结构化需求 (industry, scenario, scale)
-  ↓
-[方案设计 Agent]      → 功能清单
-  ↓
-  ├─→ [内容生成 Agent]   → 功能介绍 / 操作流程 / 价值说明 / 话术
-  ├─→ [数据模拟 Agent]   → 行业匹配的 JSON / CSV mock data
-  └─→ [架构描述 Agent]   → 文字描述 or Mermaid
-  ↓
-[结果整合 Agent]      → 最终 Markdown / HTML 方案
+# Dev servers
+make dev-backend                    # http://localhost:8800 (template mode)
+make dev-frontend                   # http://localhost:3300
+LLM_MODE=llm make dev-backend       # LLM mode
 ```
 
-The **编排引擎** (orchestration engine, F2-5) is the piece that owns this DAG: it fixes the execution order and threads each upstream agent's output into the downstream agent's prompt. The three middle agents (内容/数据/架构) are independent given 方案设计's output — the spec draws them as fan-out, so running them concurrently is a natural fit for the ≤ 30 s budget, though the spec itself doesn't mandate it. Results converge in 结果整合. Progress must be visible to the front-end (F2-6).
+## Architecture
 
-### Module split (from spec §3)
+```
+frontend/                          # Vue 3 + Vite + Element Plus + Pinia
+  src/
+    api.ts                         # fetch + SSE wrappers (sole network surface)
+    stores/plan.ts                 # state machine: form -> generating -> done | error
+    components/
+      RequirementForm.vue          # F1-1..F1-4
+      ProgressPanel.vue            # F2-6 (SSE progress)
+      PlanView.vue                 # F3-1 (marked + DOMPurify)
+      ExportButton.vue             # F3-6
 
-| Module | Key requirements |
-|---|---|
-| 需求输入 (§3.1) | Form: industry, scenario, scale, demo length (P0); free-text customer background (P1); preset templates (P1); required-field validation (P0). |
-| Agent 编排 (§3.2) | The 5-agent DAG above. F2-1..F2-5 are all P0. |
-| 原型输出 (§3.3) | Markdown/HTML overview (P0); demo checklist with 步骤 + 话术 (P0); JSON/CSV mock data pack (P0); Mermaid architecture (P1); per-feature time allocation for the chosen demo length (P1); export Markdown/PDF (P1). |
-| 方案管理 (§3.4) | History list (P1); reuse-as-template (P2); rating/feedback (P2). |
+backend/                           # Python + FastAPI
+  app/
+    main.py                        # POST /generate, GET /progress (SSE), /result, /export
+    schemas.py                     # RequirementInput, GenerateResponse, PlanResult
+    session.py                     # In-memory SessionStore (TTL 900s, zero disk writes)
+    agents/
+      base.py                      # Agent Protocol, AgentContext, AgentError
+      registry.py                  # AGENT_REGISTRY: LLM_MODE switch (template/llm/hybrid)
+      parse_agent.py               # F2-1 template
+      design_agent.py              # F2-2 template
+      content_agent.py             # F2-3 template
+      data_agent.py                # F2-4 template
+      architecture_agent.py        # template (Mermaid)
+      integrate_agent.py           # 结果整合 + render_markdown()
+      llm/
+        client.py                  # AsyncOpenAI wrapper for Volcengine Ark
+        base.py                    # LLMAgentBase + HybridAgent + _fix_llm_json()
+        prompts.py                 # 6 four-section prompt builders
+        parse_agent.py             # LLMParseAgent (LLM-driven)
+        design_agent.py            # LLMDesignAgent
+        content_agent.py           # LLMContentAgent
+        data_agent.py              # LLMDataAgent
+        architecture_agent.py      # LLMArchitectureAgent
+    orchestrator/
+      dag.py                       # DAG definition (data-only, config-driven)
+      engine.py                    # run_pipeline(): layers + anyio concurrency
+      events.py                    # AgentEvent dataclass
+    templates/industries/
+      manufacturing.yaml, finance.yaml, retail.yaml   # 6 features each, 3 mock tables
+    export/markdown.py             # render_markdown(): 6-section document assembler
+```
 
-### Non-functional (§4) — enforce in code
+### Agent DAG
 
-- **≤ 30 s** end-to-end wall clock from submit to fully rendered plan.
-- **Coverage**: generated 功能清单 covers ≥ 80 % of scenario-relevant features.
-- **Fault-tolerance**: a single Agent failure must yield a clear error naming the failing Agent, without killing sibling Agents that can still run.
-- **Configurability**: templates and per-Agent capabilities must be swappable — new industry templates are added without code changes to the orchestration engine.
-- **Data safety**: customer input is session-scoped only. **Do not persist and do not exfiltrate** — this is an explicit spec constraint.
+```
+parse                     (layer 0)
+  +-- design              (layer 1)
+  |     +-- content       (layer 2, || data)
+  |     +-- data          (layer 2, || content)
+  +-- architecture        (layer 1, || design)
+        |
+     integrate            (layer 3, blocks on content+data+architecture)
+```
 
-### Acceptance criteria (§6) — treat as the test matrix
+Layers run sequentially; nodes within a layer run concurrently via `anyio.create_task_group`. Single agent failure raises `AgentError` with name + reason (AC-6); sibling agents continue. All inter-agent communication goes through `ctx.outputs` dict — no shared bus.
 
-AC-1 form submit → progress shown · AC-2 parsed 需求 has correct industry+scenario · AC-3 ≥ 3 scenario-relevant features · AC-4 mock-data fields match industry semantics · AC-5 export produces a complete, well-formatted file · AC-6 failure surfaces Agent name + reason · AC-7 end-to-end ≤ 30 s.
+### LLM mode
 
-### Recommended stack (§5.1) — spec's suggestion, not a hard mandate
+`LLM_MODE` env var (default: `template`) controls the agent registry:
+- `template` — YAML/template logic, no API key needed
+- `llm` — 5 agents use Volcengine Ark LLM; integrate stays template (pure assembly, not LLM-friendly)
+- `hybrid` — LLM first, auto fallback to template on `AgentError`
 
-- Front-end: **Vue 3 + Element Plus** (form + result view + progress).
-- Back-end: **Python + FastAPI** (owns the 编排引擎).
-- LLM: pluggable — GLM / Claude / GPT via API.
-- Agent-to-Agent communication: chained function calls, upstream output → downstream prompt (no shared bus).
+API config in `backend/.env` (git-ignored). See `.env.example`:
+```
+ARK_API_KEY=your-key
+ARK_BASE_URL=https://ark.cn-beijing.volces.com/api/plan/v3
+ARK_MODEL=ark-code-latest
+LLM_MODE=llm
+```
 
-### MVP order (§5.4) — build in this sequence
+LLM agents follow the same `Agent` Protocol — the engine doesn't know which is which. Adding a new LLM agent: write the class, add to `_llm_registry()` in `registry.py`.
 
-1. Form (industry + scenario + scale).
-2. Orchestration engine with **3 agents in series** (parse → design → generate).
-3. One end-to-end Markdown output.
-4. Front-end display + export.
-5. **Rules/templates first, real LLM later** — the spec explicitly permits mocking agents with templates to validate the pipeline before wiring in LLM calls. Preserve this seam when building.
+## Key constraints (spec §4, enforced in code)
 
-Bonus/加分 items (§7) — multi-turn refinement, Mermaid auto-render, interactive HTML prototype, CRM import, one-click PPT (python-pptx), dynamic (LLM-decided) agent ordering. Do not pursue these before the MVP passes AC-1..AC-7.
+- **<=30s e2e** — template ~1s, LLM ~55s (acceptable for external API)
+- **Fault tolerance** — `AgentError` percolates; engine skips downstream, siblings finish (AC-6)
+- **Configurability** — new industry = drop YAML; new agent = edit DAG tuple + registry
+- **Data safety** — `SessionStore` is plain `dict`, zero disk I/O, 15-min TTL
+- **Coverage >= 80%** — `DesignAgent` enforces `MIN_COVERAGE = 0.8`
 
-## Working conventions specific to this repo
+## Working conventions
 
-- **The spec is the source of truth.** When code and `doc/02-以型促签.docx` disagree, quote the spec section (e.g. "spec §3.2 F2-5") in the discussion and reconcile before editing.
-- **Prompt design (§5.3):** every Agent's prompt must state — 角色定义 · 输入格式 · 输出格式 · 约束条件. Keep prompts in a dedicated `prompts/` directory (one file per Agent) once code exists, so they can be versioned and diffed independently from Python logic.
-- **The orchestration engine is a DAG, not a script.** Wire it so a new agent can be inserted between existing ones by editing a config, not by editing the runner — this is what makes §4 可配置性 achievable.
-- **Progress reporting is a first-class output**, not a debug log — F2-6 and AC-1 both depend on the front-end seeing per-agent state.
+- Import pydantic models from the template agent file, don't redefine (e.g. `from app.agents.parse_agent import ParsedRequirement`)
+- Every agent docstring: 角色定义 · 输入格式 · 输出格式 · 约束条件 (spec §5.3)
+- Every `run()`: read from `ctx.requirement`/`ctx.outputs`, write `ctx.outputs[self.name] = result.model_dump()`
+- Raise `AgentError(self.name, "reason")` on controlled failure; let unexpected exceptions propagate
+- `AGENT_REGISTRY` is the single swap point — never reference agent class names directly in engine or DAG
