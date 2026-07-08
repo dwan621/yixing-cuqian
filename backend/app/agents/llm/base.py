@@ -7,6 +7,34 @@ from app.agents.base import AgentError
 from app.agents.llm import client
 
 _FENCE_RE = re.compile(r"```(?:json)?\s*\n?(.*?)```", re.DOTALL)
+_UNQUOTED_KEY_RE = re.compile(r'(?<=\{|\,)\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*:')
+_SINGLE_QUOTE_KEY_RE = re.compile(r"'([a-zA-Z_][a-zA-Z0-9_]*)':")
+
+
+def _fix_llm_json(raw: str) -> str:
+    """Fix common LLM JSON formatting errors: unquoted keys, single quotes, trailing commas."""
+    result = raw.strip()
+
+    # 1. Quote bare property names: {key: "val"} → {"key": "val"}
+    result = _UNQUOTED_KEY_RE.sub(r'"\1":', result)
+
+    # 2. Single-quoted keys: {'key': 'val'} → {"key": "val"}
+    result = _SINGLE_QUOTE_KEY_RE.sub(r'"\1":', result)
+
+    # 3. Single-quoted values: {'val'} → {"val"} (careful: don't touch contractions like it's)
+    result = result.replace("':' ", '":" ').replace("':'", '":"')  # single-quoted dict values → double
+    result = result.replace(", '", ', "').replace(": '", ': "')  # remaining single quotes → double
+
+    # 4. Remove trailing commas before } or ]
+    result = re.sub(r',\s*(\}|\])', r'\1', result)
+
+    # 5. Remove leading/trailing non-JSON text
+    first_brace = result.find('{')
+    last_brace = result.rfind('}')
+    if first_brace >= 0 and last_brace > first_brace:
+        result = result[first_brace:last_brace + 1]
+
+    return result
 
 
 class LLMAgentBase:
@@ -35,9 +63,17 @@ class LLMAgentBase:
             except (json.JSONDecodeError, Exception) as e:
                 errors.append(str(e))
 
+        # Attempt 3: fix common LLM JSON errors and retry
+        fixed = _fix_llm_json(raw)
+        try:
+            data = json.loads(fixed)
+            return output_model.model_validate(data)
+        except (json.JSONDecodeError, Exception) as e:
+            errors.append(f"after fix: {e}")
+
         raise AgentError(
             self.name,
-            f"LLM response not parseable as {output_model.__name__}: {'; '.join(errors[-2:])}",
+            f"LLM response not parseable as {output_model.__name__}: {'; '.join(errors[-3:])}",
         )
 
 
